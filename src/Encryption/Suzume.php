@@ -122,7 +122,7 @@ class Suzume
 
     private static function sM4KeySchedule(): void
     {
-        $sm4Key = env('JWT_SECRET', 'default-secret-key');
+        $sm4Key = env('MINO_SECRET', "1234567890ABCDEF");
         // 验证密钥是否为空
         if (empty($sm4Key)) {
             throw new \RuntimeException('Encryption key is not set.');
