@@ -1,0 +1,35 @@
+{
+    "name": "morisawa_kana/laravel-mino",
+    "description": "A custom Laravel package with mino authentication guard.",
+    "keywords": [
+        "auth",
+        "authentication",
+        "json web token",
+        "jwt",
+        "laravel"
+    ],
+    "authors": [
+        {
+            "name": "Mino"
+        }
+    ],
+    "require": {
+        "php": "^8.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Morisawa\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Morisawa\\MinoAuthServiceProvider"
+            ],
+            "aliases": {
+                "MinoAuth": "Morisawa\\Facades\\MinoAuth"
+            }
+        }
+    },
+    "minimum-stability": "stable"
+}
