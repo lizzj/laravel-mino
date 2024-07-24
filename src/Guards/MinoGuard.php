@@ -8,6 +8,7 @@ use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Morisawa\Auth\Encryption\Suzume;
+use Morisawa\Auth\Contracts\MinoSubject;
 
 class MinoGuard implements Guard
 {
