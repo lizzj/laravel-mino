@@ -47,7 +47,7 @@ class MinoGuard implements Guard
                 $payload = $this->parseToken($token);
                 $this->user = $this->provider->retrieveById($payload['id']);
             } catch (AuthenticationException $e) {
-                throw new AuthenticationException('Invalid or expired token.');
+                throw new AuthenticationException($e->getMessage());
             }
         }
         return $this->user;
@@ -61,7 +61,7 @@ class MinoGuard implements Guard
                 $this->user = $payload ? $this->provider->retrieveById($payload['id']) : null;
                 return $this->user !== null;
             } catch (AuthenticationException $e) {
-                throw new AuthenticationException('Invalid or expired token.');
+                throw new AuthenticationException($e->getMessage());
             }
         }
         return false;
@@ -178,8 +178,6 @@ class MinoGuard implements Guard
             return $payload;
         } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
             throw new AuthenticationException('Token decryption failed.');
-        } catch (\Exception $e) {
-            throw new AuthenticationException('Token parsing failed.');
         }
     }
 }
