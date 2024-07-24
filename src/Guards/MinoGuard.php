@@ -9,6 +9,9 @@ use Illuminate\Http\Request;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Morisawa\Auth\Encryption\Suzume;
 use Morisawa\Auth\Contracts\MinoSubject;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class MinoGuard implements Guard
 {
@@ -20,6 +23,17 @@ class MinoGuard implements Guard
     {
         $this->provider = $provider;
         $this->request = $request;
+    }
+
+    protected $exp = 0; // 默认过期时间
+
+    public function setExpire($ttlType = false)
+    {
+        $this->exp = match ($ttlType) {
+            true => Carbon::now()->add("2day")->getTimestamp(),
+            default => Carbon::now()->add("2hour")->getTimestamp()
+        };
+        return $this;
     }
 
     public function user()
@@ -88,8 +102,25 @@ class MinoGuard implements Guard
         return $this->generateToken($user);
     }
 
+    public function attempt(array $credentials = [])
+    {
+        $user = $this->provider->retrieveByCredentials($credentials);
+        if ($user && $this->hasValidCredentials($user, $credentials)) {
+            return $this->generateToken($user);
+        }
+        throw new AuthenticationException('User not found.');
+    }
+
+    protected function hasValidCredentials($user, $credentials)
+    {
+        return $this->provider->validateCredentials($user, $credentials);
+    }
+
     public function generateToken(Authenticatable $user)
     {
+        if ($this->exp === 0) {
+            $this->setExpire();
+        }
         if (!$user instanceof MinoSubject) {
             throw new AuthenticationException('User does not implement MinoSubject.');
         }
@@ -97,16 +128,22 @@ class MinoGuard implements Guard
         if (get_class($user) !== $modelClass) {
             throw new AuthenticationException('User model does not match.');
         }
-
+        $hash_value = dechex(Carbon::now()->getPreciseTimestamp(6));
+        $user->sso_hash = $hash_value;
+        $user->save();
         $payload = [
             'id' => $user->getAuthIdentifier(),
             'model' => hash('sha256', $modelClass),
-            'exp' => time() + 3600,
+            'exp' => $this->exp,
+            'hash' => $hash_value,
         ];
-
         try {
-            $token = Suzume::encrypt(json_encode($payload));
-            return $token;
+            $shuffle = Arr::shuffle(['id', 'model', 'exp', 'hash']);
+            $shuffleArray = [];
+            foreach ($shuffle as $item) {
+                $shuffleArray[$item] = $payload[$item];
+            }
+            return Suzume::encrypt(json_encode($shuffleArray));
         } catch (\Exception $e) {
             throw new AuthenticationException('Token generation failed.');
         }
@@ -116,7 +153,6 @@ class MinoGuard implements Guard
     {
         try {
             $payload = json_decode(Suzume::decrypt($token), true);
-
             if (!$payload) {
                 throw new AuthenticationException('Invalid token payload.');
             }
@@ -127,14 +163,16 @@ class MinoGuard implements Guard
             if ($user === null) {
                 throw new AuthenticationException('User not found.');
             }
-
             if ($user->getBlock()) {
                 throw new AuthenticationException('User is blocked.');
+            }
+            if ($user->getSso($payload['hash'])) {
+                throw new AuthenticationException('The account has been logged in to another device.');
             }
             if ($payload['model'] !== hash('sha256', get_class($user))) {
                 throw new AuthenticationException('Model mismatch.');
             }
-            if ($payload['exp'] < time()) {
+            if (time() > $payload['exp']) {
                 throw new AuthenticationException('Token expired.');
             }
             return $payload;
