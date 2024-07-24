@@ -1,6 +1,6 @@
 <?php
 
-namespace Morisawa\Encryption;
+namespace Morisawa\Auth\Encryption;
 
 use Illuminate\Auth\AuthenticationException;
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace Morisawa\Console;
+namespace Morisawa\Auth\Console;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;

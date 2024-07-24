@@ -1,5 +1,5 @@
 <?php
-namespace Morisawa\Contracts;
+namespace Morisawa\Auth\Contracts;
 
 interface MinoSubject
 {

@@ -1,13 +1,13 @@
 <?php
 
-namespace Morisawa\Guards;
+namespace Morisawa\Auth\Guards;
 
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Morisawa\Encryption\Suzume;
+use Morisawa\Auth\Encryption\Suzume;
 
 class MinoGuard implements Guard
 {

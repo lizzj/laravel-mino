@@ -1,11 +1,11 @@
 <?php
 
-namespace Morisawa;
+namespace Morisawa\Auth;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Auth;
-use Morisawa\Guards\MinoGuard;
-use Morisawa\Console\GenerateToken;
+use Morisawa\Auth\Guards\MinoGuard;
+use Morisawa\Auth\Console\GenerateToken;
 class MinoAuthServiceProvider extends ServiceProvider
 {
     public function boot()

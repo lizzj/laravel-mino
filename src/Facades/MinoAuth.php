@@ -1,6 +1,6 @@
 <?php
 
-namespace Morisawa\Facades;
+namespace Morisawa\Auth\Facades;
 
 use Illuminate\Support\Facades\Facade;
 

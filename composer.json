@@ -18,16 +18,16 @@
     },
     "autoload": {
         "psr-4": {
-            "Morisawa\\": "src/"
+            "Morisawa\\Auth\\": "src/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Morisawa\\MinoAuthServiceProvider"
+                "Morisawa\\Auth\\MinoAuthServiceProvider"
             ],
             "aliases": {
-                "MinoAuth": "Morisawa\\Facades\\MinoAuth"
+                "MinoAuth": "Morisawa\\Auth\\Facades\\MinoAuth"
             }
         }
     },
