@@ -8,11 +8,13 @@
         "jwt",
         "laravel"
     ],
+    "license": "MIT",
     "authors": [
         {
-            "name": "Mino"
+          "name": "morisawa_kana"
         }
-    ],
+      ],
+    "homepage": "http://morisawa_kana.github.io/laravel-mino",
     "require": {
         "php": "^8.1"
     },
