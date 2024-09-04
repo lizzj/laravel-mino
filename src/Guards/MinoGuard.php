@@ -30,8 +30,10 @@ class MinoGuard implements Guard
     public function setExpire($ttlType = false)
     {
         $this->exp = match ($ttlType) {
-            true => Carbon::now()->add("2day")->getTimestamp(),
-            default => Carbon::now()->add("2hour")->getTimestamp()
+            '-1' => Carbon::now()->addYears(1)->getTimestamp(), // 长期有效（10年）
+            '1' => Carbon::now()->addDays(7)->getTimestamp(),       // 7天
+            '0' => Carbon::now()->addDay()->getTimestamp(),          // 1天
+            default => Carbon::now()->addHours(2)->getTimestamp()       // 默认2小时
         };
         return $this;
     }
@@ -108,7 +110,7 @@ class MinoGuard implements Guard
         if ($user && $this->hasValidCredentials($user, $credentials)) {
             return $this->generateToken($user);
         }
-        throw new AuthenticationException('User not found.');
+        throw new AuthenticationException('Unauthenticated.');
     }
 
     protected function hasValidCredentials($user, $credentials)
@@ -154,7 +156,7 @@ class MinoGuard implements Guard
         try {
             $payload = json_decode(Suzume::decrypt($token), true);
             if (!$payload) {
-                throw new AuthenticationException('Invalid token payload.');
+                throw new AuthenticationException('Invalid Authorization.');
             }
             $user = $this->provider->retrieveById($payload['id']);
             if (!$user instanceof MinoSubject) {
@@ -163,8 +165,8 @@ class MinoGuard implements Guard
             if ($user === null) {
                 throw new AuthenticationException('User not found.');
             }
-            if ($user->getBlock()) {
-                throw new AuthenticationException('User is blocked.');
+            if ($user->getBanned()) {
+                throw new AuthenticationException('User is banned.');
             }
             if ($user->getSso($payload['hash'])) {
                 throw new AuthenticationException('The account has been logged in to another device.');
@@ -176,8 +178,8 @@ class MinoGuard implements Guard
                 throw new AuthenticationException('Token expired.');
             }
             return $payload;
-        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
-            throw new AuthenticationException('Token decryption failed.');
+        } catch (\Exception $e) {
+            throw new AuthenticationException('Invalid Authorization.');
         }
     }
 }
