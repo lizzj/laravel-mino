@@ -27,10 +27,7 @@
         "laravel": {
             "providers": [
                 "Morisawa\\Auth\\MinoAuthServiceProvider"
-            ],
-            "aliases": {
-                "MinoAuth": "Morisawa\\Auth\\Facades\\MinoAuth"
-            }
+            ]
         }
     },
     "minimum-stability": "stable"
