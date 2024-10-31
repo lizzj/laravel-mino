@@ -18,6 +18,7 @@ class MinoGuard implements Guard
     protected $request;
     protected $provider;
     protected $user;
+    protected $exp = 0;
 
     public function __construct(UserProvider $provider, Request $request)
     {
@@ -25,16 +26,10 @@ class MinoGuard implements Guard
         $this->request = $request;
     }
 
-    protected $exp = 0; // 默认过期时间
-
-    public function setExpire($ttlType = false)
+    public function setExpire($ttlType = "temporary")
     {
-        $this->exp = match ($ttlType) {
-            '-1' => Carbon::now()->addYears(1)->getTimestamp(), // 长期有效（10年）
-            '1' => Carbon::now()->addDays(7)->getTimestamp(),       // 7天
-            '0' => Carbon::now()->addDay()->getTimestamp(),          // 1天
-            default => Carbon::now()->addHours(2)->getTimestamp()       // 默认2小时
-        };
+        $ttl = data_get(config("kaede.expire_ttl"), $ttlType, 2);
+        $this->exp = Carbon::now()->addHours($ttl)->getTimestamp();
         return $this;
     }
 
@@ -165,10 +160,10 @@ class MinoGuard implements Guard
             if ($user === null) {
                 throw new AuthenticationException('Access denied:Invalid Authorization.');
             }
-            if ($user->getBanned()) {
+            if (config("kaede.banned_enabled", true) && $user->getBanned()) {
                 throw new AuthenticationException('Access invalid:The account has been disabled.');
             }
-            if ($user->getSso($payload['hash'])) {
+            if (config("kaede.sso_enabled", true) && $user->getSso($payload['hash'])) {
                 throw new AuthenticationException('"Access invalid:Account has been logged in from another device.');
             }
             if ($payload['model'] !== hash('sha256', get_class($user))) {
