@@ -130,7 +130,7 @@ class MinoGuard implements Guard
         $user->save();
         $payload = [
             'id' => $user->getAuthIdentifier(),
-            'model' => hash('sha256', $modelClass),
+            'model' => hash('sha3-256', $modelClass),
             'exp' => $this->exp,
             'hash' => $hash_value,
         ];
@@ -166,7 +166,7 @@ class MinoGuard implements Guard
             if (config("kaede.sso_enabled", true) && $user->getSso($payload['hash'])) {
                 throw new AuthenticationException('"Access invalid:Account has been logged in from another device.');
             }
-            if ($payload['model'] !== hash('sha256', get_class($user))) {
+            if ($payload['model'] !== hash('sha3-256', get_class($user))) {
                 throw new AuthenticationException('Access denied:Invalid Authorization.');
             }
             if (time() > $payload['exp']) {

@@ -3,7 +3,6 @@
 namespace Morisawa\Auth\Encryption;
 
 use Illuminate\Auth\AuthenticationException;
-use phpDocumentor\Reflection\Types\Self_;
 
 class Suzume
 {
@@ -32,13 +31,20 @@ class Suzume
         foreach ($chunks as $chunk) {
             $ciphertext .= self::sM4Encrypt($chunk);
         }
-        return bin2hex($ciphertext);
+        return Hmac::generateSign(bin2hex($ciphertext));
     }
 
-    public static function decrypt($data): bool|string
+    public static function decrypt($signature): bool|string
     {
         self::initialize();
-        $data = hex2bin($data);
+        //先调用hash检测, 判断是否被修改过,提取字符串末尾的 64 位作为哈希值
+        $hashValue = substr($signature, -64);
+        // 提取剩余部分作为原始数据
+        $originalData = substr($signature, 0, -64);
+        if (!Hmac::verifySign($originalData, $hashValue)) {
+            return false;
+        }
+        $data = hex2bin($originalData);
         if (strlen($data) % self::BLOCK_SIZE !== 0) {
             return false;
         }

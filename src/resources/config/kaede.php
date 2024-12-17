@@ -12,6 +12,8 @@ return [
         'short' => 7 * 24,    // Short validity, valid for 7 days
         'temporary' => 2,     // Temporary validity, valid for 2 hours
     ],
+    // Hash-based signature key for verification
+    'sign' => env('MINO_HASH_SIGN'),
 
     // Ban feature toggle
     "banned_enabled" => true, // Enable or disable ban feature
@@ -21,7 +23,7 @@ return [
 
     // SM4 encryption configuration
     'SM4' => [
-        'SM4_KEY' => env('MINO_SECRET'),  // SM4 encryption key, retrieved from environment variable, must be 16 characters
+        'SM4_KEY' => env('MINO_SM4_SECRET'),  // SM4 encryption key, retrieved from environment variable, must be 16 characters
 
         // SM4 encryption constants
         'SM4_CK' => [
