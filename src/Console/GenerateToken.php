@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 class GenerateToken extends Command
 {
     protected $signature = 'mino:secret {--force : Override existing secret key}';
+
     protected $description = 'Set the MinoAuth secret key used to sign the tokens';
 
     public function handle()
@@ -17,7 +18,7 @@ class GenerateToken extends Command
         $path = $this->envPath();
         try {
             // 判断 .env 文件是否存在
-            if (!file_exists($path)) {
+            if (! file_exists($path)) {
                 $this->createEnvFile($path, $sm4Key, $hashKey);
             } else {
                 $this->updateEnvFile($path, $sm4Key, $hashKey);
@@ -66,10 +67,12 @@ class GenerateToken extends Command
     protected function updateKey($contents, $key, $value)
     {
         if (preg_match("/^{$key}=.+$/m", $contents)) {
-            if (!$this->option('force') && !$this->isConfirmed($key)) {
+            if (! $this->option('force') && ! $this->isConfirmed($key)) {
                 $this->comment("No changes were made to {$key}.");
+
                 return $contents;
             }
+
             return preg_replace("/^{$key}=.*/m", "{$key}={$value}", $contents);
         }
 
@@ -97,7 +100,6 @@ class GenerateToken extends Command
             "The existing {$key} will be overridden. This may invalidate existing tokens. Do you want to proceed?"
         );
     }
-
 
     /**
      * 获取 .env 文件路径

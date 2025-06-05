@@ -2,23 +2,26 @@
 
 namespace Morisawa\Auth\Encryption;
 
-use Illuminate\Auth\AuthenticationException;
-
 class Suzume
 {
     public static array $SM4_CK;
+
     public static array $SM4_SBOX;
+
     public static array $SM4_FK;
+
     public static string $SM4_KEY;
+
     public static array $_rk;
+
     public const BLOCK_SIZE = 16;
 
     public static function initialize()
     {
-        self::$SM4_CK = config("kaede.SM4.SM4_CK");
-        self::$SM4_SBOX = config("kaede.SM4.SM4_SBOX");
-        self::$SM4_FK = config("kaede.SM4.SM4_FK");
-        self::$SM4_KEY = config("kaede.SM4.SM4_KEY");
+        self::$SM4_CK = config('kaede.SM4.SM4_CK');
+        self::$SM4_SBOX = config('kaede.SM4.SM4_SBOX');
+        self::$SM4_FK = config('kaede.SM4.SM4_FK');
+        self::$SM4_KEY = config('kaede.SM4.SM4_KEY');
     }
 
     public static function encrypt($data): string
@@ -27,21 +30,22 @@ class Suzume
         self::sM4KeySchedule();
         $bytes = self::pad($data);
         $chunks = array_chunk($bytes, self::BLOCK_SIZE);
-        $ciphertext = "";
+        $ciphertext = '';
         foreach ($chunks as $chunk) {
             $ciphertext .= self::sM4Encrypt($chunk);
         }
+
         return Hmac::generateSign(bin2hex($ciphertext));
     }
 
     public static function decrypt($signature): bool|string
     {
         self::initialize();
-        //先调用hash检测, 判断是否被修改过,提取字符串末尾的 64 位作为哈希值
+        // 先调用hash检测, 判断是否被修改过,提取字符串末尾的 64 位作为哈希值
         $hashValue = substr($signature, -64);
         // 提取剩余部分作为原始数据
         $originalData = substr($signature, 0, -64);
-        if (!Hmac::verifySign($originalData, $hashValue)) {
+        if (! Hmac::verifySign($originalData, $hashValue)) {
             return false;
         }
         $data = hex2bin($originalData);
@@ -49,12 +53,13 @@ class Suzume
             return false;
         }
         self::sM4KeySchedule();
-        $bytes = unpack("C*", $data);
+        $bytes = unpack('C*', $data);
         $chunks = array_chunk($bytes, self::BLOCK_SIZE);
-        $plaintext = "";
+        $plaintext = '';
         foreach ($chunks as $chunk) {
             $plaintext .= substr(self::sM4Decrypt($chunk), 0, 16);
         }
+
         return self::un_pad($plaintext);
     }
 
@@ -66,6 +71,7 @@ class Suzume
             $buf = self::getI($tmp);
             $x[$i + 4] = $x[$i] ^ ($buf ^ self::sm4Rotl32(($buf), 2) ^ self::sm4Rotl32(($buf), 10) ^ self::sm4Rotl32(($buf), 18) ^ self::sm4Rotl32(($buf), 24));
         }
+
         return self::extracted($x);
     }
 
@@ -77,6 +83,7 @@ class Suzume
             $buf = self::getI($tmp);
             $x[$i + 4] = $x[$i] ^ ($buf ^ self::sm4Rotl32(($buf), 2) ^ self::sm4Rotl32(($buf), 10) ^ self::sm4Rotl32(($buf), 18) ^ self::sm4Rotl32(($buf), 24));
         }
+
         return self::extracted($x);
     }
 
@@ -97,6 +104,7 @@ class Suzume
         for ($i = 0; $i < $rem; $i++) {
             $bytes[] = $rem;
         }
+
         return $bytes;
     }
 
@@ -104,12 +112,13 @@ class Suzume
     {
         $bytes = self::stringToBytes($data);
         $bytes = array_slice($bytes, 0, count($bytes) - $bytes[count($bytes)]);
+
         return self::bytesToString($bytes);
     }
 
     private static function sm4Rotl32($buf, $n): int
     {
-        return (($buf << $n) & 0xffffffff) | ($buf >> (32 - $n));
+        return (($buf << $n) & 0xFFFFFFFF) | ($buf >> (32 - $n));
     }
 
     private static function sM4KeySchedule(): void
@@ -119,7 +128,7 @@ class Suzume
             throw new \InvalidArgumentException('Invalid key or input length.');
         }
         self::$_rk = [];
-        $key = array_values(unpack("C*", $sm4Key));
+        $key = array_values(unpack('C*', $sm4Key));
         $k = [];
         for ($i = 0; $i < 4; $i++) {
             $k[$i] = self::$SM4_FK[$i] ^ (($key[4 * $i] << 24) | ($key[4 * $i + 1] << 16) | ($key[4 * $i + 2] << 8) | ($key[4 * $i + 3]));
@@ -134,7 +143,7 @@ class Suzume
 
     private static function getI(int $tmp): int
     {
-        return (self::$SM4_SBOX[($tmp >> 24) & 0xFF]) << 24 | (self::$SM4_SBOX[($tmp >> 16) & 0xFF]) << 16 | (self::$SM4_SBOX[($tmp >> 8) & 0xFF]) << 8 | (self::$SM4_SBOX[$tmp & 0xFF]);
+        return self::$SM4_SBOX[($tmp >> 24) & 0xFF] << 24 | (self::$SM4_SBOX[($tmp >> 16) & 0xFF]) << 16 | (self::$SM4_SBOX[($tmp >> 8) & 0xFF]) << 8 | (self::$SM4_SBOX[$tmp & 0xFF]);
     }
 
     private static function getX($plainText): array
@@ -143,6 +152,7 @@ class Suzume
         for ($j = 0; $j < 4; $j++) {
             $x[$j] = ($plainText[$j * 4] << 24) | ($plainText[$j * 4 + 1] << 16) | ($plainText[$j * 4 + 2] << 8) | ($plainText[$j * 4 + 3]);
         }
+
         return $x;
     }
 
@@ -155,6 +165,7 @@ class Suzume
             $cipherText[4 * $k + 2] = ($x[35 - $k] >> 8) & 0xFF;
             $cipherText[4 * $k + 3] = ($x[35 - $k]) & 0xFF;
         }
+
         return self::bytesToString($cipherText);
     }
 }

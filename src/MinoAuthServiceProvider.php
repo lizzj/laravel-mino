@@ -3,16 +3,15 @@
 namespace Morisawa\Auth;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Auth;
-use Morisawa\Auth\Guards\MinoGuard;
 use Morisawa\Auth\Console\GenerateToken;
+use Morisawa\Auth\Guards\MinoGuard;
 
 class MinoAuthServiceProvider extends ServiceProvider
 {
     public function boot()
     {
         $this->publishes([
-            __DIR__.'/resources/config/kaede.php' => config_path('kaede.php')
+            __DIR__.'/resources/config/kaede.php' => config_path('kaede.php'),
         ]);
         $this->mergeConfigFrom(__DIR__.'/resources/config/kaede.php', 'kaede');
 
@@ -31,6 +30,7 @@ class MinoAuthServiceProvider extends ServiceProvider
                     $boundGuards[$name] = $app['auth']->guard($name);
                 }
             }
+
             return $boundGuards;
         });
     }
