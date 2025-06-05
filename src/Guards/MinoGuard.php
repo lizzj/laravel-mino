@@ -146,6 +146,37 @@ class MinoGuard implements Guard
         }
     }
 
+    public function refreshToken($userId)
+    {
+        $user = $this->provider->retrieveById($userId);
+        if (!$user) {
+            throw new AuthenticationException('Access denied: Failed to authorize.');
+        }
+        if (!$user instanceof MinoSubject) {
+            throw new AuthenticationException('Access denied:Authorization error.');
+        }
+        $modelClass = $this->provider->getModel();
+        if (get_class($user) !== $modelClass) {
+            throw new AuthenticationException('Access denied:Authorization error.');
+        }
+        $payload = [
+            'id' => $user->getAuthIdentifier(),
+            'model' => hash('sha3-256', $modelClass),
+            'exp' => $this->setExpire(),
+            'hash' => $user->sso_hash,
+        ];
+        try {
+            $shuffle = Arr::shuffle(['id', 'model', 'exp', 'hash']);
+            $shuffleArray = [];
+            foreach ($shuffle as $item) {
+                $shuffleArray[$item] = $payload[$item];
+            }
+            return Suzume::encrypt(json_encode($shuffleArray));
+        } catch (\Exception $e) {
+            throw new AuthenticationException('Access denied: Failed to generate authentication token.');
+        }
+    }
+
     public function parseToken($token)
     {
         try {
