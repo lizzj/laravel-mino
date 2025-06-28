@@ -22,6 +22,14 @@ class MinoGuard implements Guard
 
     protected $exp = 0;
 
+    const ACCESS_DENIED = 'Access denied:Invalid Authorization.';
+
+    const ACCESS_BANNED = 'Access banned:The account has been banned.';
+
+    const ACCESS_EXPIRED = 'Access expired:Token has expired.';
+
+    const ACCESS_CONFLICT = 'Access conflict:The account has been logged in from another device.';
+
     public function __construct(UserProvider $provider, Request $request)
     {
         $this->provider = $provider;
@@ -47,7 +55,7 @@ class MinoGuard implements Guard
                 $payload = $this->parseToken($token);
                 $this->user = $this->provider->retrieveById($payload['id']);
             } catch (AuthenticationException $e) {
-                throw new AuthenticationException('Access denied:Invalid Authorization.');
+                throw new AuthenticationException($e->getMessage(), $e->guards());
             }
         }
 
@@ -63,7 +71,7 @@ class MinoGuard implements Guard
 
                 return $this->user !== null;
             } catch (AuthenticationException $e) {
-                throw new AuthenticationException('Access denied:Invalid Authorization.');
+                throw new AuthenticationException($e->getMessage(), $e->guards());
             }
         }
 
@@ -77,7 +85,7 @@ class MinoGuard implements Guard
 
     public function guest()
     {
-        return !$this->check();
+        return ! $this->check();
     }
 
     public function id()
@@ -100,8 +108,8 @@ class MinoGuard implements Guard
     public function tokenById($userId)
     {
         $user = $this->provider->retrieveById($userId);
-        if (!$user) {
-            throw new AuthenticationException('Access denied: Failed to authorize.');
+        if (! $user) {
+            throw new AuthenticationException(self::ACCESS_DENIED);
         }
 
         return $this->generateToken($user);
@@ -113,7 +121,7 @@ class MinoGuard implements Guard
         if ($user && $this->hasValidCredentials($user, $credentials)) {
             return $this->generateToken($user);
         }
-        throw new AuthenticationException('Access denied: Authorization error.');
+        throw new AuthenticationException(self::ACCESS_DENIED);
     }
 
     protected function hasValidCredentials($user, $credentials)
@@ -126,15 +134,15 @@ class MinoGuard implements Guard
         if ($this->exp === 0) {
             $this->setExpire();
         }
-        if (!$user instanceof MinoSubject) {
-            throw new AuthenticationException('Access denied:Authorization error.');
+        if (! $user instanceof MinoSubject) {
+            throw new AuthenticationException(self::ACCESS_DENIED);
         }
         $modelClass = $this->provider->getModel();
         if (get_class($user) !== $modelClass) {
-            throw new AuthenticationException('Access denied:Authorization error.');
+            throw new AuthenticationException(self::ACCESS_DENIED);
         }
         if (config('kaede.banned_enabled', true) && $user->getBanned()) {
-            throw new AuthenticationException('Access invalid:The account has been disabled.', ['banned' => true]);
+            throw new AuthenticationException(self::ACCESS_BANNED, ['banned' => true]);
         }
         $hash_value = dechex(Carbon::now()->getPreciseTimestamp(6));
         $user->sso_hash = $hash_value;
@@ -154,15 +162,15 @@ class MinoGuard implements Guard
 
             return Suzume::encrypt(json_encode($shuffleArray));
         } catch (\Exception $e) {
-            throw new AuthenticationException('Access denied: Failed to generate authentication token.');
+            throw new AuthenticationException(self::ACCESS_DENIED);
         }
     }
 
     public function refreshToken($userId)
     {
         $user = $this->provider->retrieveById($userId);
-        if (!$user || !$user instanceof MinoSubject) {
-            throw new AuthenticationException('Access denied: Authorization error.');
+        if (! $user || ! $user instanceof MinoSubject) {
+            throw new AuthenticationException(self::ACCESS_DENIED);
         }
         $payload = [
             'id' => $user->getAuthIdentifier(),
@@ -179,7 +187,7 @@ class MinoGuard implements Guard
 
             return Suzume::encrypt(json_encode($shuffledPayload));
         } catch (\Exception $e) {
-            throw new AuthenticationException('Access denied: Failed to generate authentication token.');
+            throw new AuthenticationException(self::ACCESS_DENIED);
         }
     }
 
@@ -187,32 +195,32 @@ class MinoGuard implements Guard
     {
         try {
             $payload = json_decode(Suzume::decrypt($token), true);
-            if (!$payload) {
-                throw new AuthenticationException('Access denied:Authorization error..');
+            if (! $payload) {
+                throw new AuthenticationException(self::ACCESS_DENIED);
             }
             $user = $this->provider->retrieveById($payload['id']);
-            if (!$user instanceof MinoSubject) {
-                throw new AuthenticationException('Access denied:Authorization error..');
+            if (! $user instanceof MinoSubject) {
+                throw new AuthenticationException(self::ACCESS_DENIED);
             }
             if ($user === null) {
-                throw new AuthenticationException('Access denied:Invalid Authorization.');
+                throw new AuthenticationException(self::ACCESS_DENIED);
             }
             if (config('kaede.banned_enabled', true) && $user->getBanned()) {
-                throw new AuthenticationException('Access invalid:The account has been disabled.', ['banned' => true]);
+                throw new AuthenticationException(self::ACCESS_BANNED, ['banned' => true]);
             }
             if (config('kaede.sso_enabled', true) && $user->getSso($payload['hash'])) {
-                throw new AuthenticationException('Access invalid:Account has been logged in from another device.');
+                throw new AuthenticationException(self::ACCESS_CONFLICT);
             }
             if ($payload['model'] !== hash('sha3-256', get_class($user))) {
-                throw new AuthenticationException('Access denied:Invalid Authorization.');
+                throw new AuthenticationException(self::ACCESS_DENIED);
             }
             if (time() > $payload['exp']) {
-                throw new AuthenticationException('Access invalid:Token has expired.');
+                throw new AuthenticationException(self::ACCESS_EXPIRED);
             }
 
             return $payload;
         } catch (\Exception $e) {
-            throw new AuthenticationException('Access denied:Invalid Authorization.');
+            throw new AuthenticationException($e->getMessage(), $e->guards());
         }
     }
 }
