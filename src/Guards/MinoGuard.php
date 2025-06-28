@@ -133,6 +133,9 @@ class MinoGuard implements Guard
         if (get_class($user) !== $modelClass) {
             throw new AuthenticationException('Access denied:Authorization error.');
         }
+        if (config('kaede.banned_enabled', true) && $user->getBanned()) {
+            throw new AuthenticationException('Access invalid:The account has been disabled.', ['banned' => true]);
+        }
         $hash_value = dechex(Carbon::now()->getPreciseTimestamp(6));
         $user->sso_hash = $hash_value;
         $user->save();
@@ -195,7 +198,7 @@ class MinoGuard implements Guard
                 throw new AuthenticationException('Access denied:Invalid Authorization.');
             }
             if (config('kaede.banned_enabled', true) && $user->getBanned()) {
-                throw new \App\Exceptions\BannedExceptions('Access invalid:The account has been disabled.');
+                throw new AuthenticationException('Access invalid:The account has been disabled.', ['banned' => true]);
             }
             if (config('kaede.sso_enabled', true) && $user->getSso($payload['hash'])) {
                 throw new AuthenticationException('Access invalid:Account has been logged in from another device.');
