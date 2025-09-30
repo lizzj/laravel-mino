@@ -87,7 +87,7 @@ class MinoGuard implements Guard
 
     public function guest()
     {
-        return !$this->check();
+        return ! $this->check();
     }
 
     public function id()
@@ -110,7 +110,7 @@ class MinoGuard implements Guard
     public function tokenById($userId)
     {
         $user = $this->provider->retrieveById($userId);
-        if (!$user) {
+        if (! $user) {
             throw new AuthenticationException(self::ACCESS_DENIED);
         }
 
@@ -136,7 +136,7 @@ class MinoGuard implements Guard
         if ($this->exp === 0) {
             $this->setExpire();
         }
-        if (!$user instanceof MinoSubject) {
+        if (! $user instanceof MinoSubject) {
             throw new AuthenticationException(self::ACCESS_DENIED);
         }
         $modelClass = $this->provider->getModel();
@@ -162,7 +162,7 @@ class MinoGuard implements Guard
                 $shuffleArray[$item] = $payload[$item];
             }
 
-            return Suzume::encrypt(json_encode($shuffleArray));
+            return Suzume::encrypt($shuffleArray);
         } catch (\Exception $e) {
             throw new AuthenticationException(self::ACCESS_DENIED);
         }
@@ -171,7 +171,7 @@ class MinoGuard implements Guard
     public function refreshToken($userId)
     {
         $user = $this->provider->retrieveById($userId);
-        if (!$user || !$user instanceof MinoSubject) {
+        if (! $user || ! $user instanceof MinoSubject) {
             throw new AuthenticationException(self::ACCESS_DENIED);
         }
         $payload = [
@@ -187,7 +187,7 @@ class MinoGuard implements Guard
                 $shuffledPayload[$key] = $payload[$key];
             }
 
-            return Suzume::encrypt(json_encode($shuffledPayload));
+            return Suzume::encrypt($shuffledPayload);
         } catch (\Exception $e) {
             throw new AuthenticationException(self::ACCESS_DENIED);
         }
@@ -196,12 +196,12 @@ class MinoGuard implements Guard
     public function parseToken($token)
     {
         try {
-            $payload = json_decode(Suzume::decrypt($token), true);
-            if (!$payload) {
+            $payload = Suzume::decrypt($token);
+            if (! $payload) {
                 throw new AuthenticationException(self::ACCESS_DENIED);
             }
             $user = $this->provider->retrieveById($payload['id']);
-            if (!$user instanceof MinoSubject) {
+            if (! $user instanceof MinoSubject) {
                 throw new AuthenticationException(self::ACCESS_DENIED);
             }
             if ($user === null) {
