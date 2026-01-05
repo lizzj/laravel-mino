@@ -52,8 +52,7 @@ class MinoGuard implements Guard
         $token = $this->request->bearerToken();
         if ($token) {
             try {
-                $payload = $this->parseToken($token);
-                $this->user = $this->provider->retrieveById($payload['id']);
+                $this->user = $this->parseToken($token);
             } catch (AuthenticationException $e) {
                 throw new AuthenticationException($e->getMessage(), $e->guards());
             }
@@ -68,9 +67,8 @@ class MinoGuard implements Guard
     {
         if (isset($credentials['token'])) {
             try {
-                $payload = $this->parseToken($credentials['token']);
-                $this->user = $payload ? $this->provider->retrieveById($payload['id']) : null;
-
+                $user = $this->parseToken($credentials['token']) ?? null;
+                $this->user= $user;
                 return $this->user !== null;
             } catch (AuthenticationException $e) {
                 throw new AuthenticationException($e->getMessage(), $e->guards());
@@ -220,7 +218,7 @@ class MinoGuard implements Guard
                 throw new AuthenticationException(self::ACCESS_EXPIRED);
             }
 
-            return $payload;
+            return $user;
         } catch (\Exception $e) {
             throw new AuthenticationException($e->getMessage(), $e->guards());
         }
