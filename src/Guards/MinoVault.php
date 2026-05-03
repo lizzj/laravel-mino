@@ -30,9 +30,10 @@ class MinoVault
 
     public static function sync(string $scope, int $id, string $hash, bool $isBanned, int $exp): void
     {
+        $key=self::getVaultKey($scope, $id);
         $value = "{$hash}:".($isBanned ? '1' : '0').":{$exp}";
         $redis = self::redis();
-        $redis->command('HSET', [self::getVaultKey($scope, $id), (string) $id, $value]);
+        $redis->command('HSET', [$key, (string) $id, $value]);
         $redis->expire($key, 86400 * 7);
     }
 
