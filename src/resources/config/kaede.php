@@ -2,7 +2,7 @@
 
 /*
  * @Author: もりさわかな
- * @LastEditTime: 2025-09-30 17:13:22
+ * @LastEditTime: 2026-05-03 16:25:08
  */
 
 /*
@@ -18,6 +18,10 @@ return [
         'short' => 7 * 24,    // Short validity, valid for 7 days
         'temporary' => 2,     // Temporary validity, valid for 2 hours
     ],
+
+    // redis cache database
+    'cache' => 'default',
+
     // Hash-based signature key for verification
     'sign' => env('MINO_HASH_SIGN'),
 

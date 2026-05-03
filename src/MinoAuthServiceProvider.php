@@ -1,5 +1,10 @@
 <?php
 
+/*
+ * @Author: もりさわかな
+ * @LastEditTime: 2026-05-03 16:25:21
+ */
+
 namespace Morisawa\Auth;
 
 use Illuminate\Support\ServiceProvider;
@@ -19,7 +24,7 @@ class MinoAuthServiceProvider extends ServiceProvider
             $provider = $app['auth']->createUserProvider($config['provider']);
             $request = $app['request'];
 
-            return new MinoGuard($provider, $request);
+            return new MinoGuard($provider, $request, $name);
         });
 
         $this->app->singleton('mino-auth', function ($app) {

@@ -8,17 +8,18 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
 use Morisawa\Auth\Contracts\MinoSubject;
 use Morisawa\Auth\Encryption\Suzume;
 
 class MinoGuard implements Guard
 {
+    protected $name;
+
     protected $request;
 
     protected $provider;
 
-    protected $user;
+    protected $authId;
 
     protected $exp = 0;
 
@@ -30,10 +31,11 @@ class MinoGuard implements Guard
 
     const ACCESS_CONFLICT = 'Access conflict:The account has been logged in from another device.';
 
-    public function __construct(UserProvider $provider, Request $request)
+    public function __construct(UserProvider $provider, Request $request, string $name)
     {
         $this->provider = $provider;
         $this->request = $request;
+        $this->name = $name;
     }
 
     public function setExpire($ttlType = 'temporary')
@@ -46,41 +48,28 @@ class MinoGuard implements Guard
 
     public function user()
     {
-        if ($this->user !== null) {
-            return $this->user;
+        if ($this->authId !== null) {
+            return $this->authId;
         }
         $token = $this->request->bearerToken();
         if ($token) {
-            try {
-                $this->user = $this->parseToken($token);
-            } catch (AuthenticationException $e) {
-                throw new AuthenticationException($e->getMessage(), $e->guards());
-            }
-        } else {
-            throw new AuthenticationException(self::ACCESS_DENIED);
+            return $this->authId = $this->parseToken($token);
         }
-
-        return $this->user;
+        throw new AuthenticationException(self::ACCESS_DENIED);
     }
 
-    public function validate(array $credentials = [])
+    public function id()
     {
-        if (isset($credentials['token'])) {
-            try {
-                $user = $this->parseToken($credentials['token']) ?? null;
-                $this->user= $user;
-                return $this->user !== null;
-            } catch (AuthenticationException $e) {
-                throw new AuthenticationException($e->getMessage(), $e->guards());
-            }
-        }
-
-        return false;
+        return $this->user();
     }
 
     public function check()
     {
-        return $this->user() !== null;
+        try {
+            return $this->user() !== null;
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     public function guest()
@@ -88,39 +77,36 @@ class MinoGuard implements Guard
         return ! $this->check();
     }
 
-    public function id()
+    public function setUserId($id)
     {
-        $user = $this->user();
+        $this->authId = $id;
 
-        return $user ? $user->getAuthIdentifier() : null;
+        return $this;
     }
 
-    public function setUser(Authenticatable $user)
+    public function hasUserId()
     {
-        $this->user = $user;
+        return $this->authId !== null;
     }
 
     public function hasUser()
     {
-        return $this->user !== null;
+        return $this->authId !== null;
     }
 
-    public function tokenById($userId)
+    public function setUser(Authenticatable $user)
     {
-        $user = $this->provider->retrieveById($userId);
-        if (! $user) {
-            throw new AuthenticationException(self::ACCESS_DENIED);
-        }
-
-        return $this->generateToken($user);
+        $this->authId = $user->getAuthIdentifier();
     }
 
     public function attempt(array $credentials = [])
     {
         $user = $this->provider->retrieveByCredentials($credentials);
+
         if ($user && $this->hasValidCredentials($user, $credentials)) {
             return $this->generateToken($user);
         }
+
         throw new AuthenticationException(self::ACCESS_DENIED);
     }
 
@@ -137,58 +123,56 @@ class MinoGuard implements Guard
         if (! $user instanceof MinoSubject) {
             throw new AuthenticationException(self::ACCESS_DENIED);
         }
-        $modelClass = $this->provider->getModel();
-        if (get_class($user) !== $modelClass) {
-            throw new AuthenticationException(self::ACCESS_DENIED);
-        }
+
         if (config('kaede.banned_enabled', true) && $user->getBanned()) {
-            throw new AuthenticationException(self::ACCESS_BANNED, ['banned' => true]);
+            throw new AuthenticationException(self::ACCESS_BANNED);
         }
+
         $hash_value = dechex(Carbon::now()->getPreciseTimestamp(6));
         $user->sso_hash = $hash_value;
         $user->save();
-        $payload = [
-            'id' => $user->getAuthIdentifier(),
-            'model' => hash('sha3-256', $modelClass),
-            'exp' => $this->exp,
-            'hash' => $hash_value,
-        ];
-        try {
-            $shuffle = Arr::shuffle(['id', 'model', 'exp', 'hash']);
-            $shuffleArray = [];
-            foreach ($shuffle as $item) {
-                $shuffleArray[$item] = $payload[$item];
-            }
 
-            return Suzume::encrypt($shuffleArray);
-        } catch (\Exception $e) {
-            throw new AuthenticationException(self::ACCESS_DENIED);
-        }
+        MinoVault::sync($this->name, $user->getAuthIdentifier(), $hash_value, (bool) $user->getBanned(), $this->exp);
+
+        return $this->buildToken($user->getAuthIdentifier(), get_class($user), $hash_value);
     }
 
     public function refreshToken($userId)
     {
+        if ($this->exp === 0) {
+            $this->setExpire();
+        }
         $user = $this->provider->retrieveById($userId);
+
         if (! $user || ! $user instanceof MinoSubject) {
             throw new AuthenticationException(self::ACCESS_DENIED);
         }
-        $payload = [
-            'id' => $user->getAuthIdentifier(),
-            'model' => hash('sha3-256', get_class($user)), // 更灵活：防止多模型混用时伪造
-            'exp' => $this->setExpire(),
-            'hash' => $user->sso_hash,
-        ];
-        try {
-            $shuffle = Arr::shuffle(array_keys($payload));
-            $shuffledPayload = [];
-            foreach ($shuffle as $key) {
-                $shuffledPayload[$key] = $payload[$key];
-            }
 
-            return Suzume::encrypt($shuffledPayload);
-        } catch (\Exception $e) {
-            throw new AuthenticationException(self::ACCESS_DENIED);
+        if (config('kaede.banned_enabled', true) && $user->getBanned()) {
+            throw new AuthenticationException(self::ACCESS_BANNED);
         }
+
+        MinoVault::sync($this->name, $user->getAuthIdentifier(), $user->sso_hash, (bool) $user->getBanned(), $this->exp);
+
+        return $this->buildToken($user->getAuthIdentifier(), get_class($user), $user->sso_hash);
+    }
+
+    protected function buildToken($id, $modelClass, $hash)
+    {
+        $payload = [
+            'id' => $id,
+            'model' => hash('sha3-256', $modelClass),
+            'exp' => $this->exp,
+            'hash' => $hash,
+        ];
+        $keys = array_keys($payload);
+        shuffle($keys);
+        $shuffled = [];
+        foreach ($keys as $key) {
+            $shuffled[$key] = $payload[$key];
+        }
+
+        return Suzume::encrypt($shuffled);
     }
 
     public function parseToken($token)
@@ -198,29 +182,57 @@ class MinoGuard implements Guard
             if (! $payload) {
                 throw new AuthenticationException(self::ACCESS_DENIED);
             }
+            $cache = MinoVault::get($this->name, $payload['id']);
+            if ($cache) {
+                $this->validateState($cache['hash'], $payload['hash'], $cache['banned'], $cache['exp']);
+
+                return (int) $payload['id'];
+            }
             $user = $this->provider->retrieveById($payload['id']);
-            if (! $user instanceof MinoSubject) {
+            if (! $user || ! $user instanceof MinoSubject) {
                 throw new AuthenticationException(self::ACCESS_DENIED);
-            }
-            if ($user === null) {
-                throw new AuthenticationException(self::ACCESS_DENIED);
-            }
-            if (config('kaede.banned_enabled', true) && $user->getBanned()) {
-                throw new AuthenticationException(self::ACCESS_BANNED, ['banned' => true]);
-            }
-            if (config('kaede.sso_enabled', true) && $user->getSso($payload['hash'])) {
-                throw new AuthenticationException(self::ACCESS_CONFLICT);
             }
             if ($payload['model'] !== hash('sha3-256', get_class($user))) {
                 throw new AuthenticationException(self::ACCESS_DENIED);
             }
-            if (time() > $payload['exp']) {
-                throw new AuthenticationException(self::ACCESS_EXPIRED);
-            }
+            $this->validateState($user->sso_hash, $payload['hash'], $user->getBanned(), $payload['exp']);
+            MinoVault::sync($this->name, $user->getAuthIdentifier(), $user->sso_hash, (bool) $user->getBanned(), $payload['exp']);
 
-            return $user;
+            return (int) $user->id;
         } catch (\Exception $e) {
-            throw new AuthenticationException($e->getMessage(), $e->guards());
+            if ($e instanceof AuthenticationException) {
+                throw $e;
+            }
+            throw new AuthenticationException($e->getMessage());
         }
+    }
+
+    protected function validateState($currentHash, $tokenHash, $isBanned, $expireTime)
+    {
+        if (config('kaede.banned_enabled', true) && $isBanned) {
+            throw new AuthenticationException(self::ACCESS_BANNED);
+        }
+        if (config('kaede.sso_enabled', true) && $currentHash !== $tokenHash) {
+            throw new AuthenticationException(self::ACCESS_CONFLICT);
+        }
+        if (time() > $expireTime) {
+            throw new AuthenticationException(self::ACCESS_EXPIRED);
+        }
+    }
+
+    public function validate(array $credentials = [])
+    {
+        if (isset($credentials['token'])) {
+            try {
+                $id = $this->parseToken($credentials['token']);
+                $this->setUserId($id);
+
+                return $id !== null;
+            } catch (\Exception $e) {
+                return false;
+            }
+        }
+
+        return false;
     }
 }
