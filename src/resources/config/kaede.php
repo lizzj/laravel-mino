@@ -2,7 +2,7 @@
 
 /*
  * @Author: もりさわかな
- * @LastEditTime: 2026-05-03 16:25:08
+ * @LastEditTime: 2026-05-06 11:18:37
  */
 
 /*
@@ -20,7 +20,10 @@ return [
     ],
 
     // redis cache database
-    'cache' => 'default',
+    'cache' => [
+        'database'=>'default',
+        'expire'=> 7 * 24 * 3600
+    ],
 
     // Hash-based signature key for verification
     'sign' => env('MINO_HASH_SIGN'),

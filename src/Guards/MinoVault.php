@@ -1,4 +1,8 @@
 <?php
+/*
+ * @Author: もりさわかな
+ * @LastEditTime: 2026-05-06 11:19:02
+ */
 
 /**
  * @Note
@@ -18,7 +22,7 @@ class MinoVault
 
     private static function redis()
     {
-        return Redis::connection(config('kaede.cache', 'default'));
+        return Redis::connection(config('kaede.cache.database', 'default'));
     }
 
     protected static function getVaultKey(string $scope, int $id): string
@@ -34,7 +38,7 @@ class MinoVault
         $value = "{$hash}:".($isBanned ? '1' : '0').":{$exp}";
         $redis = self::redis();
         $redis->command('HSET', [$key, (string) $id, $value]);
-        $redis->expire($key, 86400 * 7);
+        $redis->expire($key, config('kaede.cache.expire', 86400 * 7));
     }
 
     public static function get(string $scope, int $id): ?array
