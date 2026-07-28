@@ -1,8 +1,7 @@
 <?php
-
 /*
  * @Author: もりさわかな
- * @LastEditTime: 2026-05-03 16:25:21
+ * @LastEditTime: 2026-07-22 08:37:16
  */
 
 namespace Morisawa\Auth;

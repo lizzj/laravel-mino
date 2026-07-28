@@ -1,16 +1,4 @@
 <?php
-/*
- * @Author: もりさわかな
- * @LastEditTime: 2026-05-06 11:19:02
- */
-
-/**
- * @Note
- *
- * @Author もりさわ かな
- *
- * @Time 2026/5/3 14:00
- */
 
 namespace Morisawa\Auth\Guards;
 
