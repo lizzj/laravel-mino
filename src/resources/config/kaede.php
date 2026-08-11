@@ -21,8 +21,8 @@ return [
 
     // redis cache database
     'cache' => [
-        'database'=>'default',
-        'expire'=> 7 * 24 * 3600
+        'database' => 'default',
+        'expire' => 7 * 24 * 3600,
     ],
 
     // Hash-based signature key for verification

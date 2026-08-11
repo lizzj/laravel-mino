@@ -1,4 +1,5 @@
 <?php
+
 /*
  * @Author: もりさわかな
  * @LastEditTime: 2026-07-22 08:37:16
